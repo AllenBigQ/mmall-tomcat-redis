@@ -5,12 +5,18 @@ import com.mmall.common.ResponseCode;
 import com.mmall.common.ServerResponse;
 import com.mmall.pojo.User;
 import com.mmall.service.IUserService;
+import com.mmall.util.CookieUtil;
+import com.mmall.util.JsonUtil;
+import com.mmall.util.RedisPoolUtil;
+import org.codehaus.jackson.map.ContextualKeyDeserializer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 /**
@@ -40,16 +46,21 @@ public class UserController {
      */
     @RequestMapping(value = "login.do", method = RequestMethod.POST)
     @ResponseBody
-    public ServerResponse<User> login(String username, String password, HttpSession session) {
+    public ServerResponse<User> login(String username, String password, HttpSession session, HttpServletResponse httpServletResponse,HttpServletRequest httpServletRequest) {
         ServerResponse<User> response = iUserService.login(username, password);
         if (response.isSuccess()) {
-            session.setAttribute(Const.CURRENT_USER, response.getData());
+            //session.setAttribute(Const.CURRENT_USER, response.getData());
+            CookieUtil.writeLoginToken(httpServletResponse,session.getId());
+            CookieUtil.readLoginToken(httpServletRequest);
+            CookieUtil.delLoginToken(httpServletRequest,httpServletResponse);
+            RedisPoolUtil.setEx(session.getId(), JsonUtil.obj2String(response.getData()), Const.RedisCacheExtime.REDIS_SESSION_EXTIME);
         }
         return response;
     }
 
     /**
      * 用户登出功能
+     *
      * @param session
      * @return
      */
@@ -62,6 +73,7 @@ public class UserController {
 
     /**
      * 用户注册功能
+     *
      * @param user
      * @return
      */
@@ -74,7 +86,8 @@ public class UserController {
 
     /**
      * 检查用户名或者邮箱是否有效
-     * @param str 用户名或者邮箱
+     *
+     * @param str  用户名或者邮箱
      * @param type username或者email
      * @return
      */
@@ -87,6 +100,7 @@ public class UserController {
 
     /**
      * 获取登录用户的信息
+     *
      * @param session
      * @return
      */
@@ -102,6 +116,7 @@ public class UserController {
 
     /**
      * 忘记密码功能
+     *
      * @param username
      * @return 返回密码问题
      */
@@ -114,6 +129,7 @@ public class UserController {
 
     /**
      * 忘记密码中提交问题答案
+     *
      * @param username
      * @param question
      * @param answer
@@ -127,19 +143,21 @@ public class UserController {
 
     /**
      * 忘记密码中的重置密码
+     *
      * @param username
      * @param passwordNew
      * @param forgetToken
      * @return
      */
-    @RequestMapping(value = "forget_reset_password.do",method = RequestMethod.POST)
+    @RequestMapping(value = "forget_reset_password.do", method = RequestMethod.POST)
     @ResponseBody
-    public ServerResponse<String> forgetRestPassword(String username,String passwordNew,String forgetToken){
-        return iUserService.forgetResetPassword(username,passwordNew,forgetToken);
+    public ServerResponse<String> forgetRestPassword(String username, String passwordNew, String forgetToken) {
+        return iUserService.forgetResetPassword(username, passwordNew, forgetToken);
     }
 
     /**
      * 登陆状态中的重置密码
+     *
      * @param session
      * @param passwordOld
      * @param passwordNew
@@ -157,6 +175,7 @@ public class UserController {
 
     /**
      * 登录状态更新个人信息
+     *
      * @param session
      * @param user
      * @return
@@ -180,6 +199,7 @@ public class UserController {
 
     /**
      * 获取当前登录用户的详细信息，并强制登录
+     *
      * @param session
      * @return
      */

@@ -2,7 +2,8 @@ package com.mmall.service.impl;
 
 import com.google.common.collect.Lists;
 import com.mmall.service.IFileService;
-import com.mmall.util.FTPUtil;
+import com.mmall.util.FTPUtil;;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,16 +17,15 @@ import java.util.UUID;
  * Created by Allen
  */
 @Service("iFileService")
+@Slf4j
 public class FileServiceImpl implements IFileService {
-    private Logger logger = LoggerFactory.getLogger(FileServiceImpl.class);
-
     public String upload(MultipartFile file,String path){
         String filenName = file.getOriginalFilename();
         //扩展名
         //abc.jpg
         String fileExtendsionName = filenName.substring(filenName.lastIndexOf(".")+1);
         String uploadFileName= UUID.randomUUID().toString()+"."+fileExtendsionName;
-        logger.info("开始上传文件，上传文件的文件名：{}，上传的路径：{}，新文件名：{}",filenName,path,uploadFileName);
+        log.info("开始上传文件，上传文件的文件名：{}，上传的路径：{}，新文件名：{}",filenName,path,uploadFileName);
         File fileDir=new File(path);
         if(!fileDir.exists()){
             fileDir.setWritable(true);//赋予可写权限
@@ -42,7 +42,7 @@ public class FileServiceImpl implements IFileService {
             targetFile.delete();
 
         } catch (IOException e) {
-            logger.error("文件上传异常",e);
+            log.error("文件上传异常",e);
             return null;
         }
 
