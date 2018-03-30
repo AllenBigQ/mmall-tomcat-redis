@@ -13,7 +13,9 @@ import javax.servlet.http.HttpServletResponse;
 @Slf4j
 public class CookieUtil {
     private final static String COOKIE_DOMAIN = ".allen.com";
+    //服务端要种到客户端浏览器上的
     private final static String COOKIE_NAME = "mmall_login_token";
+
     //读取
     public static String readLoginToken(HttpServletRequest request) {
         Cookie[] cks = request.getCookies();
@@ -29,6 +31,7 @@ public class CookieUtil {
         return null;
     }
     //写入
+    //token就是jsessionid
     public static void writeLoginToken(HttpServletResponse response, String token) {
         Cookie ck = new Cookie(COOKIE_NAME, token);
         ck.setDomain(COOKIE_DOMAIN);

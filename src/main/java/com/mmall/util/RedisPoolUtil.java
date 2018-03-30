@@ -15,11 +15,13 @@ public class RedisPoolUtil {
      * @param exTime
      * @return
      */
+    //重新设置时间
     public static Long expire(String key,int exTime){
         Jedis jedis = null;
         Long result = null;
         try {
             jedis = RedisPool.getJedis();
+            //设置成功返回1，没有被设置返回0
             result = jedis.expire(key,exTime);
         } catch (Exception e) {
             log.error("expire key:{} error",key,e);
@@ -31,6 +33,7 @@ public class RedisPoolUtil {
     }
 
     //exTime的单位是秒
+    //设置时间
     public static String setEx(String key,String value,int exTime){
         Jedis jedis = null;
         String result = null;
@@ -51,13 +54,17 @@ public class RedisPoolUtil {
         String result = null;
 
         try {
+            //从RedisPool连接池中获取一个jedis
             jedis = RedisPool.getJedis();
             result = jedis.set(key,value);
         } catch (Exception e) {
             log.error("set key:{} value:{} error",key,value,e);
+            //把异常的连接返回
             RedisPool.returnBrokenResource(jedis);
+            //如果出现异常result就是null
             return result;
         }
+        //把正常的jedis返回
         RedisPool.returnResource(jedis);
         return result;
     }
@@ -90,5 +97,15 @@ public class RedisPoolUtil {
         }
         RedisPool.returnResource(jedis);
         return result;
+    }
+
+    public static void main(String[] args) {
+            Jedis jedis = RedisPool.getJedis();
+            RedisPoolUtil.set("allen","123");
+            String value = RedisPoolUtil.get("allen");
+            RedisPoolUtil.setEx("allen1","111",60*20);
+            RedisPoolUtil.expire("allen",60*20);
+            RedisPoolUtil.del("allen");
+        System.out.println("end");
     }
 }
