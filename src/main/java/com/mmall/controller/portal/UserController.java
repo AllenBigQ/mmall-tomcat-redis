@@ -50,6 +50,7 @@ public class UserController {
         ServerResponse<User> response = iUserService.login(username, password);
         if (response.isSuccess()) {
             //session.setAttribute(Const.CURRENT_USER, response.getData());
+            //session.getId() 取的就是session的id作为token 也可以使用UUID
             CookieUtil.writeLoginToken(httpServletResponse,session.getId());
             RedisShardedPoolUtil.setEx(session.getId(), JsonUtil.obj2String(response.getData()), Const.RedisCacheExtime.REDIS_SESSION_EXTIME);
         }
@@ -174,7 +175,7 @@ public class UserController {
     @ResponseBody
     public ServerResponse<String> resetPassword(HttpServletRequest httpServletRequest, String passwordOld, String passwordNew) {
         String loginToken = CookieUtil.readLoginToken(httpServletRequest);
-        if (StringUtils.isEmpty(loginToken)){
+        if (StringUtils.isEmpty(loginToken)){   //cs == null || cs.length() == 0
             return ServerResponse.createByErrorMessage("用户未登录，无法获取当前用户的信息");
         }
         String userJsonStr = RedisShardedPoolUtil.get(loginToken);
