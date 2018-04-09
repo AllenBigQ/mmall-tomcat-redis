@@ -39,14 +39,16 @@ public class RedisShardedPool {
 
         config.setBlockWhenExhausted(true);//连接耗尽的时候，是否阻塞，false会抛出异常，true阻塞直到超时。默认为true。
 
+        //JedisShardInfo类包含了jedis服务器的一些信息，每个代表一个真实的节点，我们有两个redis，所以需要创建两个
+        //redis，传入ip，端口，默认也是2秒
         JedisShardInfo info1 = new JedisShardInfo(redis1Ip,redis1Port,1000*2);
-
         JedisShardInfo info2 = new JedisShardInfo(redis2Ip,redis2Port,1000*2);
-
+        //创建list集合存放所有的节点
         List<JedisShardInfo> jedisShardInfoList = new ArrayList<JedisShardInfo>(2);
         jedisShardInfoList.add(info1);
         jedisShardInfoList.add(info2);
-
+        //第一个参数是config配置，第二个参数是list，存放的是节点数，第三个参数是hashing调用murmur_hash策略，这是默认策略
+        //还有一个是MD5策略，这个策略对应的就是一致性算法。MD5 is really not good
         pool = new ShardedJedisPool(config,jedisShardInfoList, Hashing.MURMUR_HASH, Sharded.DEFAULT_KEY_TAG_PATTERN);
 
     }
@@ -54,7 +56,48 @@ public class RedisShardedPool {
     static{
         initPool();
     }
+    /*获取一个ShardedJedis，ShardedJedis继承BinaryShardedJedis再继承Sharded
+    *
+     * Sharded中initialize源码，其中有一个weight属性，权重默认为1，所以默认创建
+      * 的虚拟节点个数为160，改成2，虚拟节点就是320个，然后将字符串hash后作为键(虚拟节点)，
+      * shardInfo作为值存到一个TreeMap中(这是模拟一致性哈希算法中将虚拟节点映射
+      * 到环上的操作)，最后将shardInfo与对应的jedis类的映射关系存储到resources里。
+    private void initialize(List<S> shards) {
+	nodes = new TreeMap<Long, S>();
 
+	for (int i = 0; i != shards.size(); ++i) {
+	    final S shardInfo = shards.get(i);
+	    if (shardInfo.getName() == null)
+		for (int n = 0; n < 160 * shardInfo.getWeight(); n++) {
+		    nodes.put(this.algo.hash("SHARD-" + i + "-NODE-" + n),
+			    shardInfo);
+		}
+	    else
+		for (int n = 0; n < 160 * shardInfo.getWeight(); n++) {
+		    nodes.put(
+			    this.algo.hash(shardInfo.getName() + "*"
+				    + shardInfo.getWeight() + n), shardInfo);
+		}
+	    resources.put(shardInfo, shardInfo.createResource());
+	}
+    }
+    如何根据一个key找到存在哪个里面呢
+    public R getShard(byte[] key) {
+	return resources.get(getShardInfo(key));
+    }
+
+    tailMap(K fromKey)->返回其键大于或者等于的部分，如果这个SortedMap为空
+    说明这个key在这个环的末尾，没有比它还大的了，所以按照顺时针，直接取这个环node的
+    第一个节点，如果不为空，就取第一个，也就是按照顺时针里这个key最近的节点，这就是一致性哈希
+
+    public S getShardInfo(byte[] key) {
+	SortedMap<Long, S> tail = nodes.tailMap(algo.hash(key));
+	if (tail.isEmpty()) {
+	    return nodes.get(nodes.firstKey());
+	}
+	return tail.get(tail.firstKey());
+    }
+*/
     public static ShardedJedis getJedis(){
         return pool.getResource();
     }
