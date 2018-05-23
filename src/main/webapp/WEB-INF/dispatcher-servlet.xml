@@ -42,5 +42,20 @@
         <property name="defaultEncoding" value="UTF-8"></property>
     </bean>
 
+    <!-- springMVC 拦截器配置 -->
+    <mvc:interceptors>
+        <mvc:interceptor>
+            <!--manage/a.do  /manage/* -->
+            <!--manage/b.do  /manage/* -->
+            <!--manage/product/save.do  /manage/** -->
+            <!--manage/order/detail.do    /manage/** -->
+            <mvc:mapping path="/manage/**"/>
+            <!-- 不拦截login.do 解决拦截登陆导致的循环 -->
+            <!--<mvc:exclude-mapping path="/manage/user/login.do" />-->
+            <bean class="com.mmall.controller.common.interceptor.AuthorityInterceptor"></bean>
+        </mvc:interceptor>
+    </mvc:interceptors>
+
+
 
 </beans>
