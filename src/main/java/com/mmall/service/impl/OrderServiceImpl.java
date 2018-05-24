@@ -30,6 +30,7 @@ import com.mmall.vo.ShippingVo;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateUtils;
 import org.aspectj.weaver.ast.Or;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -565,6 +566,34 @@ public ServerResponse<PageInfo> manageList(int pageNum,int pageSize){
         }
         return ServerResponse.createByErrorMessage("订单不存在");
     }
+
+    //二期定时关单部分
+    @Override
+    public void closeOrder(int hour) {
+        Date closeDateTime = DateUtils.addHours(new Date(),-hour);
+        List<Order> orderList = orderMapper.selectOrderStatusByCreateTime(Const.OrderStatusEnum.NO_PAY.getCode(),DateTimeUtil.dateToStr(closeDateTime));
+
+        for (Order order:orderList){
+            //根据order拿到订单详情
+            List<OrderItem> orderItemList = orderItemMapper.getByOrderNo(order.getOrderNo());
+            for (OrderItem orderItem: orderItemList){
+                //一定要使用主键where条件，防止锁表。同时必须是支持MySQL的InnoDB
+                Integer stock = productMapper.selectStockByProductId(orderItem.getProductId());
+
+                //考虑到已经生成的订单里的商品，被删除的情况
+                if(stock==null){
+                    continue;
+                }
+                Product produc = new Product();
+                produc.setId(orderItem.getProductId());
+                produc.setStock(stock+orderItem.getQuantity());
+                productMapper.updateByPrimaryKeySelective(produc);
+            }
+            orderMapper.closeOrderByOrderId(order.getId());
+            log.info("关闭订单OrderNo:{}",order.getOrderNo());
+        }
+    }
+
 
 }
 
