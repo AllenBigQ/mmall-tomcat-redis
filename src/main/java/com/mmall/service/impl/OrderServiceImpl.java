@@ -570,23 +570,35 @@ public ServerResponse<PageInfo> manageList(int pageNum,int pageSize){
     //二期定时关单部分
     @Override
     public void closeOrder(int hour) {
+        /*传入小时参数，1，代表1个小时以内未付款的订单，进行关闭，
+        closeDateTime，和现在的时间做对比，例如当前时间是20点，
+        我们就要寻找19点之前下单并未付款的订单。
+        计算出closeDateTime后，根据这个时间查询出这些订单的List。
+         */
         Date closeDateTime = DateUtils.addHours(new Date(),-hour);
         List<Order> orderList = orderMapper.selectOrderStatusByCreateTime(Const.OrderStatusEnum.NO_PAY.getCode(),DateTimeUtil.dateToStr(closeDateTime));
-
+        //循环遍历每个订单
         for (Order order:orderList){
-            //根据order拿到订单详情
+            //根据订单的订单号拿到这个订单的订单详情List，比如一个订单里有手机，电脑等一个List
             List<OrderItem> orderItemList = orderItemMapper.getByOrderNo(order.getOrderNo());
             for (OrderItem orderItem: orderItemList){
+                //根据订单的productId产品号来查询这个产品的库存
                 //一定要使用主键where条件，防止锁表。同时必须是支持MySQL的InnoDB
                 Integer stock = productMapper.selectStockByProductId(orderItem.getProductId());
-
                 //考虑到已经生成的订单里的商品，被删除的情况
                 if(stock==null){
                     continue;
                 }
+                //新new一个Product，来更新库存
                 Product produc = new Product();
                 produc.setId(orderItem.getProductId());
+                //新库存为数据库中的库存加上关闭订单的这个库存
                 produc.setStock(stock+orderItem.getQuantity());
+                /*updateByPrimaryKeySelective 这个语句会进行一个空判断，
+                也就是说，如果传进来的参数为null，就不更新,所以新new一个产品，
+                传入id和库存，根据id，只更新库存就可以了，不用所有字段全部更新
+                提高sql效率
+                 */
                 productMapper.updateByPrimaryKeySelective(produc);
             }
             orderMapper.closeOrderByOrderId(order.getId());

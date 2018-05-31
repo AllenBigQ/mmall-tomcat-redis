@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+
 /**
  * Created by Allen
  * 定时关单
@@ -20,7 +22,11 @@ public class closeOrderTask {
     @Autowired
     private IOrderService iOrderService;
 
-    //版本1 没有分布式锁
+    /*版本1 适合没有Tomcat集群的环境 由于是集群需要创建分布式锁，
+    这个是没有分布式锁的，单Tomcat简单版
+    如果在Tomcat集群环境中使用，那么每个Tomcat都会执行一遍任务
+    浪费资源的同时还会导致系统数据错乱。可以使用redis分布式锁来解决这个问题
+     */
 //    @Scheduled(cron = "0 */1 * * * ?")//每一分钟（每个1分钟的整数倍）
     public void closeOrderTaskV1() {
         log.info("关闭订单定时任务启动");
@@ -29,21 +35,21 @@ public class closeOrderTask {
         log.info("关闭订单定时任务结束");
     }
 
-    //    @Scheduled(cron = "0 */1 * * * ?")//每一分钟（每个1分钟的整数倍）
+//    @Scheduled(cron = "0 */1 * * * ?")//每一分钟（每个1分钟的整数倍）
     public void closeOrderTaskV2() {
         log.info("关闭订单定时任务启动");
+        //lockTimeout，锁的超时时间
         long lockTimeout = Long.parseLong(PropertiesUtil.getProperty("lock.timeout", "5000"));
         Long setnxResult = RedisShardedPoolUtil.setnx(Const.REDIS_LOCK.CLOSE_ORDER_TASK_LOCK, String.valueOf(System.currentTimeMillis() + lockTimeout));
         if (setnxResult != null && setnxResult.intValue() == 1) {
-            //如果返回值是1，代表设置成功，获取到锁
+            //如果返回值是1，代表设置成功，获取到锁，调用closeOrder方法，给锁设置有效期后再关闭订单再删除锁
             closeOrder(Const.REDIS_LOCK.CLOSE_ORDER_TASK_LOCK);
         } else {
-            //如果每获取到锁
+            //如果没获取到锁
             log.info("没有获得分布式锁：{}", Const.REDIS_LOCK.CLOSE_ORDER_TASK_LOCK);
         }
         log.info("关闭订单定时任务结束");
     }
-
     @Scheduled(cron = "0 */1 * * * ?")//每一分钟（每个1分钟的整数倍）
     public void closeOrderTaskV3() {
         log.info("关闭订单定时任务启动");
